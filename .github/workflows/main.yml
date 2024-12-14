@@ -46,10 +46,10 @@ jobs:
                           if item['name'].endswith('.txt'):
                               wordlist_urls.append(item["download_url"])
 
-          for wordlist_url in wordlist_urls:
-              result = subprocess.run(['curl', '-s', wordlist_url], capture_output=True, text=True)
-              if result.returncode == 0:
-                  with open(os.path.expanduser('~/Wordlists/wordlists.txt'), 'a') as f:
+          with open(os.path.expanduser('~/Wordlists/wordlists.txt'), 'w') as f:
+              for wordlist_url in wordlist_urls:
+                  result = subprocess.run(['curl', '-s', wordlist_url], capture_output=True, text=True)
+                  if result.returncode == 0:
                       f.write(result.stdout)
           "
 
@@ -59,7 +59,7 @@ jobs:
     steps:
       - name: Merge and remove duplicates
         run: |
-          cat ~/Wordlists/wordlists.txt | sort -u > ~/Wordlists/merged_wordlists.txt
+          sort -u ~/Wordlists/wordlists.txt > ~/Wordlists/merged_wordlists.txt
 
   test_script:
     runs-on: ubuntu-latest
