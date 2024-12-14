@@ -33,22 +33,37 @@ jobs:
               return urls
 
           urls = fetch_wordlists_from_file()
-          with open(os.path.expanduser('~/Wordlists/urls.txt'), 'w') as f:
-              for url in urls:
-                  if url.startswith('http'):
-                      f.write(f'{url}\\n')
-                  else:
-                      api_url = f'https://api.github.com/repos/{url}/contents/'
-                      result = subprocess.run(['curl', '-s', api_url], capture_output=True, text=True)
-                      if result.returncode == 0:
-                          contents = json.loads(result.stdout)
-                          for item in contents:
-                              if item['name'].endswith('.txt'):
-                                  f.write(f'{item["download_url"]}\\n')
+          wordlist_urls = []
+          for url in urls:
+              if url.startswith('http'):
+                  wordlist_urls.append(url)
+              else:
+                  api_url = f'https://api.github.com/repos/{url}/contents/'
+                  result = subprocess.run(['curl', '-s', api_url], capture_output=True, text=True)
+                  if result.returncode == 0:
+                      contents = json.loads(result.stdout)
+                      for item in contents:
+                          if item['name'].endswith('.txt'):
+                              wordlist_urls.append(item["download_url"])
+
+          for wordlist_url in wordlist_urls:
+              result = subprocess.run(['curl', '-s', wordlist_url], capture_output=True, text=True)
+              if result.returncode == 0:
+                  with open(os.path.expanduser('~/Wordlists/wordlists.txt'), 'a') as f:
+                      f.write(result.stdout)
           "
-  test_script:
+
+  process_wordlists:
     runs-on: ubuntu-latest
     needs: fetch_wordlists
+    steps:
+      - name: Merge and remove duplicates
+        run: |
+          cat ~/Wordlists/wordlists.txt | sort -u > ~/Wordlists/merged_wordlists.txt
+
+  test_script:
+    runs-on: ubuntu-latest
+    needs: process_wordlists
     steps:
       - name: Test Python
         run: python --version
@@ -57,8 +72,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: test_script
     steps:
-      - name: Upload fetched URLs
+      - name: Upload merged wordlists
         uses: actions/upload-artifact@v4
         with:
-          name: fetched-urls
-          path: ~/Wordlists/urls.txt
+          name: merged-wordlists
+          path: ~/Wordlists/merged_wordlists.txt
