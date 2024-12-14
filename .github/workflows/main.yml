@@ -6,7 +6,7 @@ on:
       - main
       - dev
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 jobs:
@@ -21,6 +21,7 @@ jobs:
       - name: Fetch wordlists
         id: fetch
         run: |
+          python -c "
           import os
           import subprocess
           import json
@@ -44,7 +45,7 @@ jobs:
                           for item in contents:
                               if item['name'].endswith('.txt'):
                                   f.write(f'{item["download_url"]}\\n')
-
+          "
   test_script:
     runs-on: ubuntu-latest
     needs: fetch_wordlists
