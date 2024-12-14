@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: fetch_wordlists
     steps:
-      - name: Test Python environment
+      - name: Test Python
         run: python --version
 
   deploy:
