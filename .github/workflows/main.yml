@@ -1,0 +1,90 @@
+name: Combine Wordlists
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  fetch_wordlists:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Create wordlists directory
+        run: mkdir -p ~/Wordlists
+
+      - name: Fetch wordlists
+        id: fetch
+        run: |
+          import os
+          import subprocess
+
+          def fetch_wordlists_from_file():
+              urls = []
+              with open('WordlistCombiner/urls.txt', 'r') as f:
+                  urls = [line.strip() for line in f.readlines()]
+              return urls
+
+          urls = fetch_wordlists_from_file()
+          with open(os.path.expanduser('~/Wordlists/urls.txt'), 'w') as f:
+              for url in urls:
+                  f.write(f'{url}\\n')
+
+  test_script:
+    runs-on: ubuntu-latest
+    needs: fetch_wordlists
+    steps:
+      - name: Check fetched URLs
+        run: |
+          if [ ! -s ~/Wordlists/urls.txt ]; then
+            echo "No URLs fetched. Exiting."
+            exit 1
+          fi
+          echo "Fetched URLs:"
+          cat ~/Wordlists/urls.txt
+
+      - name: Merge wordlists
+        id: merge
+        run: |
+          import os
+          import subprocess
+
+          def fetch_wordlists(urls):
+              temp_wordlist_path = os.path.expanduser('~/Wordlists/temp_wordlist.txt')
+              with open(temp_wordlist_path, 'w') as temp_file:
+                  for url in urls:
+                      result = subprocess.run(['curl', '-s', url], capture_output=True, text=True)
+                      if result.returncode == 0:
+                          temp_file.write(result.stdout)
+
+          def merge_wordlists(output_path):
+              temp_wordlist_path = os.path.expanduser('~/Wordlists/temp_wordlist.txt')
+              unique_lines = set()
+              
+              with open(temp_wordlist_path, 'r') as temp_file:
+                  for line in temp_file:
+                      stripped_line = line.strip()
+                      if stripped_line:
+                          unique_lines.add(stripped_line)
+
+              with open(output_path, 'w') as output_file:
+                  for line in unique_lines:
+                      output_file.write(f'{line}\\n')
+
+          urls = []
+          with open(os.path.expanduser('~/Wordlists/urls.txt'), 'r') as f:
+              urls = [line.strip() for line in f.readlines()]
+
+          merge_wordlists(os.path.expanduser('~/Wordlists/merged_wordlist.txt'))
+          fetch_wordlists(urls)
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test_script
+    steps:
+      - name: Upload merged wordlist
+        uses: actions/upload-artifact@v2
+        with:
+          name: merged-wordlist
+          path: ~/Wordlists/merged_wordlist.txt
